@@ -1,0 +1,43 @@
+name: dibs poll
+
+on:
+  schedule:
+    # Offset off the top-of-hour to dodge congestion. GitHub's floor is 5 min
+    # and scheduled runs can drift/drop under load. Change cadence here, not
+    # in config.yaml — Actions reads the schedule from this file.
+    - cron: "4,19,34,49 * * * *"
+  workflow_dispatch:
+
+# No overlapping runs (the state commit is not safe to interleave).
+concurrency:
+  group: dibs-poll
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python dibs.py
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT: ${{ secrets.RECIPIENT }}
+      - name: Commit state if changed
+        run: |
+          git config user.name "dibs-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add state.json
+          # ponytail: commit only on change -> clean history, no keep-alive spam.
+          # If matches go quiet for ~60 days GitHub emails you to re-enable Actions.
+          if ! git diff --staged --quiet; then
+            git commit -m "update state [skip ci]"
+            git push
+          fi
