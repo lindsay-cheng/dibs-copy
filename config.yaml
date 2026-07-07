@@ -6,8 +6,10 @@
 # "Jane Street" matches "Jane Street Capital". Don't know a company's exact
 # name? Run `python companies.py` to print the real list.
 companies:
-  - Citadel
-  - name: Jane Street
-    roles: [software]
-  - name: Anthropic
-    roles: [engineer, research]
+  - Meta
+  - Google
+  - Dayforce
+  - BMO
+  - Bank of Montreal
+  - TD Bank
+  - Royal Bank of Canada
