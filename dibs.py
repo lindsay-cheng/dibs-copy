@@ -35,10 +35,14 @@ def fetch_listings() -> list:
         return json.load(r)
 
 
-def load_watchlist(cfg: dict) -> list:
-    """[(normalized_company, [role_keywords_lower]), ...]. Empty roles = all."""
+def load_watchlist(cfg: dict) -> list | str:
+    """[(normalized_company, [role_keywords_lower]), ...], or the "all" sentinel.
+    A top-level `companies: all` (bare string) means match every company."""
+    companies = cfg.get("companies")
+    if isinstance(companies, str) and companies.strip().lower() == "all":
+        return "all"
     out = []
-    for item in cfg.get("companies") or []:
+    for item in companies or []:
         if isinstance(item, str):
             name, roles = item, []
         else:
@@ -50,7 +54,9 @@ def load_watchlist(cfg: dict) -> list:
     return out
 
 
-def matches(listing: dict, watchlist: list) -> bool:
+def matches(listing: dict, watchlist: list | str) -> bool:
+    if watchlist == "all":
+        return True
     company = normalize(listing.get("company_name", ""))
     title = (listing.get("title") or "").lower()
     for comp, roles in watchlist:
