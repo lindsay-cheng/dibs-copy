@@ -2,10 +2,10 @@ name: dibs poll
 
 on:
   schedule:
-    # Offset off the top-of-hour to dodge congestion. GitHub's floor is 5 min
-    # and scheduled runs can drift/drop under load. Change cadence here, not
-    # in config.yaml — Actions reads the schedule from this file.
-    - cron: "4,19,34,49 * * * *"
+    # Offset off the top-of-hour to dodge congestion. We're now at GitHub's
+    # 5-min floor, so drift/drop under load is most visible here. Change
+    # cadence here, not in config.yaml — Actions reads the schedule from this file.
+    - cron: "4,9,14,19,24,29,34,39,44,49,54,59 * * * *"
   workflow_dispatch:
 
 # No overlapping runs (the state commit is not safe to interleave).

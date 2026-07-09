@@ -18,12 +18,12 @@
 ---
 
 Dibs watches the [SimplifyJobs Summer2026](https://github.com/SimplifyJobs/Summer2026-Internships)
-listings every 15 minutes, keeps only the ones matching your watchlist, and
+listings every 5 minutes, keeps only the ones matching your watchlist, and
 emails you the new ones. It runs entirely on GitHub Actions for free. Your
 computer is only needed if you want to test things locally.
 
 **vs. SWEList:** SWEList emails every new posting, batched once a day. Dibs adds
-per-company filtering, so you get notified about new postings you care about the most, and it checks every 15 minutes instead of daily. Think of it as the filtered,
+per-company filtering, so you get notified about new postings you care about the most, and it checks every 5 minutes instead of daily. Think of it as the filtered,
 near-real-time version of the same idea.
 
 ## How it works
@@ -102,6 +102,11 @@ titles containing those words. Matching ignores case and punctuation and drops
 Inc/LLC/Corp, so exact capitalization doesn't matter. One caveat: it's a
 substring match, so very short names can catch extras (`meta` also matches
 "Metabase"). Paste the exact name from `companies.txt` if you see noise.
+
+To hear about every company instead of a curated list, set `companies: all` (a
+bare string, no list). It matches every posting with no role filter and
+auto-includes companies Simplify adds later, so you never need to re-run
+`companies.py` and edit the list. Expect SWEList-style volume.
 
 ## Changing how often it checks
 

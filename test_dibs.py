@@ -38,6 +38,10 @@ assert matches(_l("Google LLC", "Software Engineer Intern"), wl)  # keyword hit
 assert not matches(_l("Google", "Product Manager"), wl)           # keyword miss
 assert not matches(_l("Airbnb", "Software Engineer"), wl)         # not on list
 
+# companies: all -> sentinel "all", matches everything (no role filter).
+assert load_watchlist({"companies": "all"}) == "all"
+assert matches(_l("Anything", "Any role"), "all")
+
 # a name that normalizes to "" must never match everything
 assert load_watchlist({"companies": ["!!!"]}) == []
 assert not matches(_l("Anybody", "Any role"), load_watchlist({"companies": ["!!!"]}))
