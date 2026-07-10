@@ -8,6 +8,7 @@ import json
 import os
 import re
 import smtplib
+import time
 import urllib.request
 from email.message import EmailMessage
 from pathlib import Path
@@ -76,13 +77,27 @@ def save_state(ids: set) -> None:
     STATE_FILE.write_text(json.dumps(sorted(ids), indent=0))
 
 
+def posted_ago(ts) -> str:
+    """Human 'posted Nh ago' from a unix timestamp, or '' if unavailable."""
+    if not ts:
+        return ""
+    secs = max(0, int(time.time()) - int(ts))
+    if secs < 3600:
+        return f"posted {secs // 60}m ago"
+    if secs < 86400:
+        return f"posted {secs // 3600}h ago"
+    return f"posted {secs // 86400}d ago"
+
+
 def format_body(new: list) -> str:
     lines = []
     for l in sorted(new, key=lambda x: (x.get("company_name") or "").lower()):
         loc = ", ".join(l.get("locations") or []) or "location N/A"
         term = ", ".join(l.get("terms") or []) or ""
+        age = posted_ago(l.get("date_posted"))
+        detail = "  ".join(p for p in (loc, f"({term})" if term else "", age) if p)
         lines.append(f"{l.get('company_name')} — {l.get('title')}")
-        lines.append(f"  {loc}" + (f"  ({term})" if term else ""))
+        lines.append(f"  {detail}")
         lines.append(f"  {l.get('url', '')}")
         lines.append("")
     return "\n".join(lines)

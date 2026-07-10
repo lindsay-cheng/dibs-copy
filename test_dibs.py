@@ -9,10 +9,11 @@ on the schedule. Without those vars that last step is skipped.
 import json
 import os
 import tempfile
+import time
 from pathlib import Path
 
 import dibs
-from dibs import normalize, matches, load_watchlist
+from dibs import normalize, matches, load_watchlist, posted_ago
 
 _real_send_email = dibs.send_email  # capture before the e2e test stubs it out
 
@@ -45,6 +46,14 @@ assert matches(_l("Anything", "Any role"), "all")
 # a name that normalizes to "" must never match everything
 assert load_watchlist({"companies": ["!!!"]}) == []
 assert not matches(_l("Anybody", "Any role"), load_watchlist({"companies": ["!!!"]}))
+
+# posted_ago: unix timestamp -> human age, empty when the field is missing.
+now = int(time.time())
+assert posted_ago(now - 30 * 60) == "posted 30m ago"
+assert posted_ago(now - 2 * 3600) == "posted 2h ago"
+assert posted_ago(now - 3 * 86400) == "posted 3d ago"
+assert posted_ago(None) == ""
+assert posted_ago(0) == ""
 
 
 # --- end to end: fetch -> filter -> match -> notify -> persist -> dedup ---
