@@ -17,8 +17,8 @@
 
 ---
 
-Dibs watches the [SimplifyJobs Summer2026](https://github.com/SimplifyJobs/Summer2026-Internships)
-listings every 5 minutes, keeps only the ones matching your watchlist, and
+Dibs watches the [SimplifyJobs internship listings](https://github.com/SimplifyJobs/Summer2026-Internships)
+every 5 minutes, keeps only the ones matching your watchlist, and
 emails you the new ones. It runs entirely on GitHub Actions for free. Your
 computer is only needed if you want to test things locally.
 
@@ -110,10 +110,17 @@ auto-includes companies Simplify adds later, so you never need to re-run
 
 ## Changing how often it checks
 
-The schedule lives in `.github/workflows/poll.yml`, in the `cron:` line, not in
-`config.yaml`. GitHub reads the timer from the workflow file. The shortest
-interval GitHub allows is 5 minutes, and scheduled runs can drift or be skipped
-when GitHub is busy.
+The schedule lives in `.github/workflows/poll.yml`, in the `cron:` line, not
+`config.yaml`. GitHub's shortest interval is 5 minutes, and the file is already
+set to that.
+
+One catch: GitHub's built-in `schedule:` is best-effort. Under load it drifts
+and drops runs, so in practice you may see gaps longer than 5 minutes. For
+reliable 5-minute polling, point a free external scheduler
+([cron-job.org](https://cron-job.org)) at the workflow's `workflow_dispatch`
+endpoint with a personal access token, every 5 minutes. That path skips the
+throttle queue and fires on time; the built-in cron stays as a fallback if the
+external trigger ever lapses.
 
 ## Good to know
 
