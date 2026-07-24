@@ -123,6 +123,7 @@ def _live_email():
         "company_name": "Dibs", "title": "Test email — your setup works",
         "locations": ["your inbox"], "terms": ["Summer 2026"],
         "url": "https://github.com/SimplifyJobs/Summer2026-Internships",
+        "date_posted": int(time.time()),
     }]
     _real_send_email(demo)  # raises loudly on a bad app password / login
     print(f"email: sent to {os.environ.get('RECIPIENT') or os.environ['GMAIL_USER']}")

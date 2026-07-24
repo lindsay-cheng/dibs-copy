@@ -89,9 +89,18 @@ def posted_ago(ts) -> str:
     return f"posted {secs // 86400}d ago"
 
 
-def format_body(new: list) -> str:
+FRESH_THRESHOLD_SECS = 72 * 3600
+
+
+def is_fresh(listing: dict) -> bool:
+    """True if date_posted is within the last FRESH_THRESHOLD_SECS."""
+    ts = listing.get("date_posted")
+    return bool(ts) and int(time.time()) - int(ts) <= FRESH_THRESHOLD_SECS
+
+
+def _render_listings(items: list) -> str:
     lines = []
-    for l in sorted(new, key=lambda x: (x.get("company_name") or "").lower()):
+    for l in sorted(items, key=lambda x: (x.get("company_name") or "").lower()):
         loc = ", ".join(l.get("locations") or []) or "location N/A"
         term = ", ".join(l.get("terms") or []) or ""
         age = posted_ago(l.get("date_posted"))
@@ -101,6 +110,19 @@ def format_body(new: list) -> str:
         lines.append(f"  {l.get('url', '')}")
         lines.append("")
     return "\n".join(lines)
+
+
+def format_body(new: list) -> str:
+    fresh = [l for l in new if is_fresh(l)]
+    late = [l for l in new if not is_fresh(l)]
+    sections = []
+    if fresh:
+        sections.append("Fresh (posted in last 72h) — apply now\n\n"
+                        + _render_listings(fresh).rstrip())
+    if late:
+        sections.append("Late discoveries / reopened — found late or req reopened\n\n"
+                        + _render_listings(late).rstrip())
+    return "\n\n".join(sections) + "\n"
 
 
 def send_email(new: list) -> None:
