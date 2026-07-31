@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dibs — poll SimplifyJobs listings, email new roles matching your watchlist.
+"""Dibs — poll internship listings, email new roles matching your watchlist.
 
 Run by GitHub Actions on a schedule. First run seeds state silently; every run
 after emails the new matches, then records only the IDs it successfully sent.
@@ -12,13 +12,27 @@ import time
 import urllib.request
 from email.message import EmailMessage
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import yaml
 
-LISTINGS_URL = (
-    "https://raw.githubusercontent.com/SimplifyJobs/Summer2026-Internships"
-    "/dev/.github/scripts/listings.json"
-)
+# (display name, state key, listings.json URL). Order matters: first wins on
+# same-run URL collisions (Simplify preferred over vansh).
+SOURCES = [
+    (
+        "Simplify",
+        "simplify",
+        "https://raw.githubusercontent.com/SimplifyJobs/Summer2027-Internships"
+        "/dev/.github/scripts/listings.json",
+    ),
+    (
+        "vansh",
+        "vansh",
+        "https://raw.githubusercontent.com/vanshb03/Summer2027-Internships"
+        "/dev/.github/scripts/listings.json",
+    ),
+]
+STATE_KEYS = tuple(k for _, k, _ in SOURCES)
 STATE_FILE = Path("state.json")
 CONFIG_FILE = Path("config.yaml")
 
@@ -31,9 +45,55 @@ def normalize(name: str) -> str:
     return re.sub(r"\s+", " ", name).strip()
 
 
+def fingerprint(url: str | None) -> str | None:
+    """Stable apply-URL key for cross-source dedup. None if URL unusable."""
+    if not url:
+        return None
+    u = url.strip()
+    p = urlparse(u)
+    host, path = p.netloc.lower(), p.path.rstrip("/").lower()
+    q = parse_qs(p.query)
+    m = re.search(r"ashbyhq\.com/([^/]+)/([0-9a-f-]{36})", u, re.I)
+    if m:
+        return f"ashby:{m.group(1).lower()}:{m.group(2).lower()}"
+    m = re.search(r"lever\.co/([^/]+)/([0-9a-f-]{36})", u, re.I)
+    if m:
+        return f"lever:{m.group(1).lower()}:{m.group(2).lower()}"
+    if q.get("gh_jid"):
+        return f"ghjid:{q['gh_jid'][0]}"
+    m = re.search(r"/jobs/(\d+)", path)
+    if m:
+        return f"jobs:{host}:{m.group(1)}"
+    if host or path:
+        return f"url:{host}{path}"
+    return None
+
+
+def _tag(raw: list, label: str, key: str) -> list:
+    out = []
+    for item in raw:
+        l = dict(item)
+        l["source"] = label
+        l["_key"] = key
+        if not l.get("terms") and l.get("season"):
+            l["terms"] = [l["season"]]
+        out.append(l)
+    return out
+
+
 def fetch_listings() -> list:
-    with urllib.request.urlopen(LISTINGS_URL, timeout=60) as r:
-        return json.load(r)
+    """Fetch all sources. One failure is skipped; all failing raises."""
+    out, failed = [], []
+    for label, key, url in SOURCES:
+        try:
+            with urllib.request.urlopen(url, timeout=60) as r:
+                out.extend(_tag(json.load(r), label, key))
+        except Exception as e:
+            print(f"WARN: {label} fetch failed: {e}")
+            failed.append(label)
+    if len(failed) == len(SOURCES):
+        raise RuntimeError(f"all sources failed: {failed}")
+    return out
 
 
 def load_watchlist(cfg: dict) -> list | str:
@@ -66,15 +126,47 @@ def matches(listing: dict, watchlist: list | str) -> bool:
     return False
 
 
+def _empty_state() -> dict:
+    return {k: set() for k in STATE_KEYS} | {"fingerprints": set()}
+
+
 def load_state():
-    """Set of seen IDs, or None on the very first run (no state file yet)."""
-    if STATE_FILE.exists():
-        return set(json.loads(STATE_FILE.read_text()))
-    return None
+    """State dict, or None on the very first run (no state file yet).
+
+    Legacy format was a bare JSON array of Simplify UUIDs.
+    """
+    if not STATE_FILE.exists():
+        return None
+    data = json.loads(STATE_FILE.read_text())
+    if isinstance(data, list):
+        st = _empty_state()
+        st["simplify"] = set(data)
+        return st
+    st = _empty_state()
+    for k in STATE_KEYS:
+        st[k] = set(data.get(k) or [])
+    st["fingerprints"] = set(data.get("fingerprints") or [])
+    return st
 
 
-def save_state(ids: set) -> None:
-    STATE_FILE.write_text(json.dumps(sorted(ids), indent=0))
+def save_state(state: dict) -> None:
+    obj = {k: sorted(state[k]) for k in STATE_KEYS}
+    obj["fingerprints"] = sorted(state["fingerprints"])
+    STATE_FILE.write_text(json.dumps(obj, indent=0))
+
+
+def _mark(state: dict, listing: dict) -> None:
+    state[listing["_key"]].add(listing["id"])
+    fp = fingerprint(listing.get("url"))
+    if fp:
+        state["fingerprints"].add(fp)
+
+
+def _seen(state: dict, listing: dict) -> bool:
+    if listing["id"] in state[listing["_key"]]:
+        return True
+    fp = fingerprint(listing.get("url"))
+    return bool(fp and fp in state["fingerprints"])
 
 
 def posted_ago(ts) -> str:
@@ -105,7 +197,11 @@ def _render_listings(items: list) -> str:
         term = ", ".join(l.get("terms") or []) or ""
         age = posted_ago(l.get("date_posted"))
         detail = "  ".join(p for p in (loc, f"({term})" if term else "", age) if p)
-        lines.append(f"{l.get('company_name')} — {l.get('title')}")
+        src = l.get("source") or ""
+        head = f"{l.get('company_name')} — {l.get('title')}"
+        if src:
+            head += f"  [{src}]"
+        lines.append(head)
         lines.append(f"  {detail}")
         lines.append(f"  {l.get('url', '')}")
         lines.append("")
@@ -144,23 +240,53 @@ def send_email(new: list) -> None:
 def main() -> None:
     cfg = yaml.safe_load(CONFIG_FILE.read_text()) or {}
     watchlist = load_watchlist(cfg)
-    listings = fetch_listings()  # raises on fetch failure -> job fails, retry next run
+    listings = fetch_listings()
     active = [l for l in listings if l.get("active") and l.get("is_visible")]
-    seen = load_state()
+    state = load_state()
 
-    if seen is None:
-        save_state({l["id"] for l in active})
-        print(f"First run: seeded {len(active)} listings, no email.")
+    if state is None:
+        state = _empty_state()
+        for l in active:
+            _mark(state, l)
+        save_state(state)
+        n = sum(len(state[k]) for k in STATE_KEYS)
+        print(f"First run: seeded {n} listings, no email.")
         return
 
-    new = [l for l in active if l["id"] not in seen and matches(l, watchlist)]
+    # Upgrade path: silent-seed vansh (+ backfill fps for known Simplify opens).
+    if not state["vansh"]:
+        for l in active:
+            if l["_key"] == "vansh" or l["id"] in state["simplify"]:
+                _mark(state, l)
+        save_state(state)
+        print(f"Bootstrapped vansh ({len(state['vansh'])} ids), no email.")
+        return
+
+    candidates = [l for l in active if not _seen(state, l) and matches(l, watchlist)]
+    # Same-run URL collapse: first source in SOURCES order wins.
+    new, seen_fp = [], set()
+    for l in candidates:
+        fp = fingerprint(l.get("url"))
+        if fp:
+            if fp in seen_fp:
+                continue
+            seen_fp.add(fp)
+        new.append(l)
+
     if not new:
         print("No new matches.")
         return
 
     send_email(new)  # notify-before-persist: only record what we actually sent
-    seen |= {l["id"] for l in new}
-    save_state(seen)
+    emailed_fps = {fingerprint(l.get("url")) for l in new} - {None}
+    for l in new:
+        _mark(state, l)
+    # Same job on the other source: record its id too so it never re-alerts.
+    for l in active:
+        fp = fingerprint(l.get("url"))
+        if fp and fp in emailed_fps:
+            state[l["_key"]].add(l["id"])
+    save_state(state)
     print(f"Emailed {len(new)} new listing(s).")
 
 

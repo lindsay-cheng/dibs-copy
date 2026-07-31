@@ -18,11 +18,12 @@
 ---
 
 Dibs sends you an email every time a new tech internship gets posted. It
-watches the [SimplifyJobs internship listings](https://github.com/SimplifyJobs/Summer2026-Internships)
-every 5 minutes and emails you whatever's new — fresh postings up top, older
-ones it found late below. It runs for free on GitHub Actions, so there's no
-server and nothing to install. Your computer is only needed if you want to
-test things locally.
+watches [Simplify](https://github.com/SimplifyJobs/Summer2027-Internships) and
+[vansh/ouckah](https://github.com/vanshb03/Summer2027-Internships) every 5
+minutes and emails you whatever's new — fresh postings up top, older ones it
+found late below. The same role on both lists only alerts once. It runs for
+free on GitHub Actions, so there's no server and nothing to install. Your
+computer is only needed if you want to test things locally.
 
 **vs. SWEList:** SWEList emails a once-a-day digest of new postings. Dibs
 checks every 5 minutes, so you hear about a posting minutes after it goes up
