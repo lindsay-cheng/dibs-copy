@@ -13,72 +13,68 @@
   </tr>
 </table>
 
-<p align="center"><strong>Get an email the moment a new internship is posted, before the pile-up, instead of refreshing a job board.</strong></p>
+<p align="center"><strong>Get an email when a new internship is posted. Apply early. Stop refreshing the board.</strong></p>
 
 ---
 
-Dibs sends you an email every time a new tech internship gets posted. It
-watches [Simplify](https://github.com/SimplifyJobs/Summer2027-Internships) and
+Dibs emails you when a new tech internship is posted. It checks
+[Simplify](https://github.com/SimplifyJobs/Summer2027-Internships) and
 [vansh/ouckah](https://github.com/vanshb03/Summer2027-Internships) every 5
-minutes and emails you whatever's new — fresh postings up top, older ones it
-found late below. The same role on both lists only alerts once. It runs for
-free on GitHub Actions, so there's no server and nothing to install. Your
-computer is only needed if you want to test things locally.
+minutes. Fresh postings are at the top of the email. Older finds are below.
+If the same role is on both lists, you get one alert. Dibs runs free on GitHub
+Actions. You do not need a server or a local install. Use your computer only
+if you want to test locally.
 
-**vs. SWEList:** SWEList emails a once-a-day digest of new postings. Dibs
-checks every 5 minutes, so you hear about a posting minutes after it goes up
-instead of the next morning.
+**vs. SWEList:** SWEList sends a once-a-day digest. Dibs checks every 5
+minutes, so you hear about a posting soon after it goes up.
 
-## Setup — about 5 minutes, all in the browser
+## Setup (about 5 minutes, all in the browser)
 
-1. **Make your own copy of this repo.** Top-right, next to the Star button,
-   click **"Use this template" → Create a new repository**. Use the template,
-   not Fork. Your copy keeps your settings, email password, and memory separate
-   from the original. Make it private if you want.
-2. **Turn on GitHub Actions.** In your copy, open the **Actions** tab and click
-   the button to enable workflows.
-3. **Choose what you hear about.** Open `config.yaml` (the pencil icon edits it
+1. **Make your own copy of this repo.** Top right, next to Star, click
+   **"Use this template" → Create a new repository**. Use the template, not
+   Fork. Your copy keeps settings, the email password, and memory separate
+   from the original. You can make the copy private.
+2. **Turn on GitHub Actions.** Open the **Actions** tab in your copy and
+   enable workflows.
+3. **Choose what you hear about.** Open `config.yaml` (pencil icon to edit
    in the browser) and pick one:
 
-   Email you about every new posting — the usual choice:
+   Email every new posting (usual choice):
 
    ```yaml
    companies: all
    ```
 
-   Or only specific companies:
+   Or only some companies:
 
    ```yaml
    companies:
      - Citadel                       # every Citadel role
      - name: Jane Street
-       roles: [software]             # optional: only titles containing these words
+       roles: [software]             # optional: only titles with these words
    ```
 
-   Names are matched loosely (`Jane Street` also matches `Jane Street Capital`).
+   Names match loosely (`Jane Street` also matches `Jane Street Capital`).
    Run `python companies.py` locally to write every company name to
    `companies.txt` for exact spellings.
 4. **Add your email secrets.** Go to **Settings → Secrets and variables →
-   Actions → New repository secret** and add three secrets:
+   Actions → New repository secret** and add:
 
    | Secret | Value |
    | --- | --- |
-   | `GMAIL_USER` | the Gmail address to send alerts from |
-   | `GMAIL_APP_PASSWORD` | a 16-character [app password](https://support.google.com/accounts/answer/185833) (your account needs 2-step verification on) |
-   | `RECIPIENT` | where alerts go. Optional; defaults to `GMAIL_USER` |
-5. **Run it once.** Back in **Actions**, open the **dibs poll** workflow and
-   click **Run workflow**. This first run only records what's currently open —
-   it doesn't email you, so you don't get one giant backlog. After that, Dibs
-   emails you whenever a new posting appears, and remembers what it sent so you
-   never get the same role twice.
+   | `GMAIL_USER` | Gmail address that sends alerts |
+   | `GMAIL_APP_PASSWORD` | 16-character [app password](https://support.google.com/accounts/answer/185833) (turn on 2-step verification first) |
+   | `RECIPIENT` | where alerts go. Optional. Defaults to `GMAIL_USER` |
+5. **Run it once.** Open **Actions → dibs poll → Run workflow**. The first
+   run only records what is open now. It does not email a backlog. After
+   that, Dibs emails new postings and remembers what it already sent.
 
-That's it. Everything runs on GitHub's servers on a timer; you can close the
-tab.
+That is all. The job runs on GitHub on a timer. You can close the tab.
 
-**Optional: confirm your email works before trusting the schedule.** Locally,
-`pip install -r requirements.txt`, set the same three values, and run the
-tests. It runs the logic checks and sends you one real test email, so a bad
-app password fails loudly here instead of silently at 3am:
+**Optional: test email before you trust the schedule.** On your machine,
+run `pip install -r requirements.txt`, set the same three values, and run
+the tests. The script checks the logic and sends one real test email. A bad
+app password fails here, not later on the schedule:
 
 ```bash
 export GMAIL_USER="you@gmail.com"
@@ -87,48 +83,45 @@ export RECIPIENT="you@gmail.com"
 python test_dibs.py
 ```
 
-## Getting the full 5-minute cadence (optional)
+## Full 5-minute cadence (optional)
 
-The check interval lives in `.github/workflows/poll.yml` (the `cron:` line),
-and it's already at GitHub's minimum of 5 minutes. The catch: GitHub's built-in
-`schedule:` is best-effort — under load it drifts and drops runs, so you may
-see gaps longer than 5 minutes. To get a reliable every-5-minutes check, point
-the free site [cron-job.org](https://cron-job.org) at your workflow on a timer.
-Takes about five minutes, all in the browser:
+The interval is in `.github/workflows/poll.yml` (`cron:` line). It is already
+at GitHub's 5-minute minimum. GitHub `schedule:` is best-effort. Under load
+it drifts or drops runs, so gaps can be longer than 5 minutes. For a steady
+every-5-minutes check, point [cron-job.org](https://cron-job.org) at your
+workflow. About five minutes, all in the browser:
 
-1. **Create a token that can trigger the workflow.** On GitHub, click your
-   profile photo → **Settings → Developer settings → Personal access tokens →
-   Fine-grained tokens → Generate new token**. Name it anything and pick an
-   expiration date you'll remember. Under **Repository access** choose **Only
-   select repositories** → your copy. Under **Permissions → Repository
-   permissions** set **Actions** to **Read and write** (nothing else is needed).
-   Click Generate, then copy the token — it's shown only once.
+1. **Create a token that can trigger the workflow.** On GitHub: profile
+   photo → **Settings → Developer settings → Personal access tokens →
+   Fine-grained tokens → Generate new token**. Give it a name and an
+   expiration you will remember. Under **Repository access**, choose
+   **Only select repositories** → your copy. Under **Permissions →
+   Repository permissions**, set **Actions** to **Read and write**. Click
+   Generate and copy the token. GitHub shows it only once.
 2. **Create the cron job.** Sign up at
-   [console.cron-job.org](https://console.cron-job.org/signup) (free, no card),
-   click **Create cronjob**, and fill in the top of the form:
+   [console.cron-job.org](https://console.cron-job.org/signup) (free, no
+   card). Click **Create cronjob** and fill in:
 
    | Field | Value |
    | --- | --- |
-   | Title | anything, e.g. `dibs poll` |
+   | Title | e.g. `dibs poll` |
    | URL | `https://api.github.com/repos/OWNER/REPO/actions/workflows/poll.yml/dispatches` |
    | Schedule | every 5 minutes (preset, or cron `*/5 * * * *`) |
 
-   Replace `OWNER` and `REPO` with your GitHub username and repo name, exactly
-   as they appear in the repo's URL. Then open the **Advanced** tab and fill
-   in:
+   Replace `OWNER` and `REPO` with your GitHub username and repo name, as in
+   the repo URL. Open **Advanced** and set:
 
    | Field | Value |
    | --- | --- |
    | Request method | `POST` |
-   | Headers | add `Accept: application/vnd.github+json` and `Authorization: Bearer YOUR_TOKEN` |
-   | Request body | `{"ref":"main"}` (change it if your default branch isn't `main`) |
+   | Headers | `Accept: application/vnd.github+json` and `Authorization: Bearer YOUR_TOKEN` |
+   | Request body | `{"ref":"main"}` (change if your default branch is not `main`) |
 
-   Paste the token from step 1 into the `Authorization` header. While you're in
-   Advanced, turn on the failure email notification — if the token ever expires
-   the job starts failing, and that email is your heads-up to renew it.
-3. **Test it.** In the cron-job.org job list, click the test-run (play) icon.
-   It should report success, and within seconds a new **dibs poll** run appears
-   in your repo's **Actions** tab, marked as triggered by `workflow_dispatch`.
-   If it fails, the status code tells you why: `401` = token wrong or expired,
-   `404` = wrong `OWNER`/`REPO` or the token isn't scoped to the repo, `422` =
-   the `ref` branch doesn't exist.
+   Paste the token from step 1 into the `Authorization` header. Turn on
+   failure email in Advanced. If the token expires, that email tells you to
+   renew it.
+3. **Test it.** In the cron-job.org job list, click the test-run (play)
+   icon. It should report success. Within seconds a **dibs poll** run
+   appears under **Actions**, triggered by `workflow_dispatch`. If it
+   fails: `401` means bad or expired token, `404` means wrong `OWNER`/`REPO`
+   or token scope, `422` means the `ref` branch does not exist.
